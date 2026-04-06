@@ -31,16 +31,10 @@ int new_gx;
 int new_gy;
 int new_gz;
 
-int previous_gx = 0;
-int previous_gy = 0;
-int previous_gz = 0;
-int previous_ax = 0;
-int previous_ay = 0;
-int previous_az = 0;
+float tilt_angle;
+float pitch_angle;
 
-//timers for angle calculation
-unsigned long start_time;
-unsigned long elapsed_time;
+
 
 //Servos for Fin steering 
 Servo fin1;
@@ -86,7 +80,7 @@ void setup() {
 }
 
 void loop() {
-    start_time = millis(); //we start counting beginning of loop
+    
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     ax -= new_ax;
     ay -= new_ay;
@@ -94,27 +88,21 @@ void loop() {
     gx -= new_gx;
     gy -= new_gy;
     gz -= new_gz;
-    elapsed_time = millis() - start_time; //we calculate the time passed between the start of the loop and the new value
-    int new_angle_pitch = previous_gy * elapsed_time; //the new angle y is equal to the previous angle times the elapsed time
-
-    //After getting new values we assign them to the old ones for the next loop
-    previous_ax = ax;
-    previous_ay = ay;
-    previous_az = az;
-    previous_gx = gx;
-    previous_gy = gy;
-    previous_gz = gz;
-
-    Serial.println(">Accel: ");
-    Serial.println(ax); 
-    Serial.println(ay);
-    Serial.println(az);
-    Serial.print("Gyro: ");
-    Serial.print("Roll: "); Serial.print(gx);
-    Serial.print("Pitch: "); Serial.print(gy);
-    Serial.print("Yaw: "); Serial.println(gz);
     
-
+    tilt_angle = atan2(ay,az) * 180/PI; //We give 2 arguments to atan2, y and z from accel, then multiply by 180 over PI since we got Radians
+    pitch_angle = atan2(ax, az) * 180/PI; //We give 2 arguments to atan2, x and z from gyro, then multiply by 180 over PI since we got Radians
+    
+    Serial.println("Pitch angle: ");
+    Serial.println(pitch_angle);    
+    Serial.println("   ");
+    Serial.println("Tilt_angle:");
+    Serial.println(tilt_angle);
+   
+   
     delay(200);
+
+}
+
+void kalman_filter(){
 
 }
