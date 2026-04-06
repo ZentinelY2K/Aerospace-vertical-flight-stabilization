@@ -3,6 +3,7 @@
 #include "I2Cdev.h"
 #include <MPU6050.h>
 #include <Arduino.h>
+#include <ESP32Servo.h>
 
 MPU6050 mpu;
 
@@ -10,27 +11,36 @@ int16_t ax, ay, az;
 int16_t gx, gy, gz;
 //make lists to append values then sum then divide by total numbers for average across 600 trials, because then it exceeds available memory, probably should upgrade to
 //Raspberry pi bruh like what the hell is this now i cant even make arrays? What is this, the 80's?
-int gx_values[1200];
+
 int countgx = 0;
 
-int gy_values[1200];
 int countgy = 0;
 
-int gz_values[1200];
-int countgz = 0; //testingtesting123
+int countgz = 0; 
 
-int average_x;
-int average_y;
-int average_z;
+int countax = 0;
 
-int sum_x = 0;
-int sum_y = 0;
-int sum_z = 0;
+int countay = 0;
+
+int countaz = 0;
+
+int new_ax;
+int new_ay;
+int new_az;    
+int new_gx;
+int new_gy;
+int new_gz;
+
+//Servos for Fin steering 
+Servo fin1;
 
 void setup() { 
     Wire.begin();
     Serial.begin(115200);
-    
+    //attach Servos to pins
+    fin1.attach(16);
+   
+
     Serial.println("Initializing MPU6050...");
     mpu.initialize();
 
@@ -41,62 +51,45 @@ void setup() {
     }
 
     //get data
-    for (int i = 0; i<=1200; i++){
+    for (int i = 0; i<=5000; i++){ //increase i<=x for more trials
       mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-      gx_values[countgx++] = gx;
-      gy_values[countgy++] = gy;
-      gz_values[countgz++] = gz;
+      countgx += gx;
+      countgy += gy;
+      countgz += gz;
+      countax += ax;
+      countay += ay;
+      countaz += az;    
     }
+    //Decided to remove unecessary loop, since we will know the number of iterations ourselves, which is 1200.
+    int size_of_everyone = 5000; 
+    //We divide the total sum of the readings by the number of iterations to get an average and store it in a variable
+    int new_ax = countax/size_of_everyone;
+    int new_ay = countay/size_of_everyone;
+    int new_az = countaz/size_of_everyone;
+    int new_gx = countgx/size_of_everyone;
+    int new_gy = countgy/size_of_everyone;
+    int new_gz = countgz/size_of_everyone;
 
-    int size_of_everyone = 1200;
-
-    for (int l = 0;l<=size_of_everyone;l++){ //all the lenghts should be same cuz they are SUPPOSED to have the same amount of trials (1200 instead of 600 for some reason)
-        sum_x += gx_values[l];
-        sum_y += gy_values[l];
-        sum_z += gz_values[l];
-    }
-
-    average_x = sum_x/size_of_everyone;
-    average_y = sum_y/size_of_everyone;
-    average_z = sum_z/size_of_everyone;
+    
    
 }
 
 void loop() {
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int new_gx = (gx-average_x/1000000);
-    int new_gz = gz-average_z;
-    int new_gy = (gy-average_y)-new_gx+new_gz*0.08;
+    ax -= new_ax;
+    ay -= new_ay;
+    az -= new_az;
+    gx -= new_gx;
+    gy -= new_gy;
+    gz -= new_gz;
 
-    Serial.println("Accel: ");
+    Serial.println(">Accel: ");
     Serial.println(ax); 
     Serial.println(ay);
     Serial.println(az);
     Serial.print("Gyro: ");
-    Serial.print(" Roll: "); Serial.print(new_gx);
-    Serial.print(" Pitch: "); Serial.print(new_gy);
-    Serial.print(" Yaw: "); Serial.println(new_gz);
+    Serial.print("Roll: "); Serial.print(gx);
+    Serial.print("Pitch: "); Serial.print(gy);
+    Serial.print("Yaw: "); Serial.println(gz);
     delay(200);
-
-   /*if(new_gz <= -4000){
-    Serial.println("Rocket State: Going East");
-   }
-   if(new_gz >= 4000){
-    Serial.println("Rocket State: Going West");
-   }*/
-
-   /*if (gy >= 2000){
-    Serial.println("Rocket State: Going Up!");
-   }
-   else if(gy <= -2000){
-    Serial.println("Rocket State: Going Down!");
-   }
-
-   if(gx >= 0 || gx <= -500){
-    Serial.println("Rocket State: Rolling");
-   }*/
-
-
-
-   
 }
