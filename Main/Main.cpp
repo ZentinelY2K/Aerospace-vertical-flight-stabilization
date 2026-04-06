@@ -31,6 +31,17 @@ int new_gx;
 int new_gy;
 int new_gz;
 
+int previous_gx = 0;
+int previous_gy = 0;
+int previous_gz = 0;
+int previous_ax = 0;
+int previous_ay = 0;
+int previous_az = 0;
+
+//timers for angle calculation
+unsigned long start_time;
+unsigned long elapsed_time;
+
 //Servos for Fin steering 
 Servo fin1;
 
@@ -69,12 +80,13 @@ void setup() {
     int new_gx = countgx/size_of_everyone;
     int new_gy = countgy/size_of_everyone;
     int new_gz = countgz/size_of_everyone;
-
+    
     
    
 }
 
 void loop() {
+    start_time = millis(); //we start counting beginning of loop
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     ax -= new_ax;
     ay -= new_ay;
@@ -82,6 +94,16 @@ void loop() {
     gx -= new_gx;
     gy -= new_gy;
     gz -= new_gz;
+    elapsed_time = millis() - start_time; //we calculate the time passed between the start of the loop and the new value
+    int new_angle_pitch = previous_gy * elapsed_time; //the new angle y is equal to the previous angle times the elapsed time
+
+    //After getting new values we assign them to the old ones for the next loop
+    previous_ax = ax;
+    previous_ay = ay;
+    previous_az = az;
+    previous_gx = gx;
+    previous_gy = gy;
+    previous_gz = gz;
 
     Serial.println(">Accel: ");
     Serial.println(ax); 
@@ -91,5 +113,8 @@ void loop() {
     Serial.print("Roll: "); Serial.print(gx);
     Serial.print("Pitch: "); Serial.print(gy);
     Serial.print("Yaw: "); Serial.println(gz);
+    
+
     delay(200);
+
 }
