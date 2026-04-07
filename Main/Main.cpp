@@ -43,7 +43,9 @@ void setup() {
     Serial.begin(115200);
     //attach Servos to pins
     fin1.attach(16);
-   
+    
+    //buzzer attach
+    pinMode(18,OUTPUT);
 
     Serial.println("Initializing MPU6050...");
     mpu.initialize();
@@ -101,7 +103,12 @@ void loop() {
     
     previous_angle_x += gx * dt; //how many degrees per second times how much time it lasted
     previous_angle_y += gy * dt;
-
+    
+    tilt_angle = atan2(ay,az) * 180/PI; //We give 2 arguments to atan2, y and z from accel, then multiply by 180 over PI since we got Radians
+    pitch_angle = atan2(ax, az) * 180/PI; //We give 2 arguments to atan2, x and z from gyro, then multiply by 180 over PI since we got Radians
+    
+    float averaged_values_x = previous_angle_x - tilt_angle;
+    float averaged_values_y = previous_angle_y - pitch_angle; //for example if previous angle y is 345 we substract the pitc from accel which is something like 34
     /*
     Dev Note:
     So basically we now have gx and gy for the gyroscope (yaw is kinda useless for now, and very unstable)
@@ -110,25 +117,45 @@ void loop() {
     then, we add the previous angle by the degrees per sedcond times time, which means we 'accumulate' values but also those
     values can decrease since they're relative, if dt is too small the value decreases, so we're measuring 'how much have I rolled since the program started?'
     this way, we can have some sort of telemetry, but of course, to get accurate readings, we need to use the precise accelometer values (kalman filter!)    */
-
-    tilt_angle = atan2(ay,az) * 180/PI; //We give 2 arguments to atan2, y and z from accel, then multiply by 180 over PI since we got Radians
-    pitch_angle = atan2(ax, az) * 180/PI; //We give 2 arguments to atan2, x and z from gyro, then multiply by 180 over PI since we got Radians
-    
-    Serial.println("Gyro X:");
+    /*Serial.println("X:");
+    Serial.println(tilt_angle);
+    Serial.println("   ");
+    Serial.println("Y:");
+    Serial.println(pitch_angle);*/
+    if (pitch_angle <= -80 && pitch_angle >= -90){
+        Serial.println("Vertical!");
+        digitalWrite(18,LOW);
+        fin1.write(0);
+    }
+    else{
+   
+        float off_relative_to_vertical = -85 - pitch_angle;
+        Serial.println("Off By:");
+        Serial.println(off_relative_to_vertical);
+        digitalWrite(18,HIGH);
+        fin1.write(15);
+    }
+    /*Serial.println("Gyro X:");
     Serial.println(previous_angle_x);
     Serial.println("Gyro Y:");
-    Serial.println(previous_angle_y);
-    
+    Serial.println(previous_angle_y);*/
 
     /*Serial.println("Pitch angle: ");
-    Serial.println(pitch_angle);    
+    Serial.println(pitch_angle); 
     Serial.println("   ");
     Serial.println("Tilt_angle:");
     Serial.println(tilt_angle);*/
     delay(200);
-
 }
 
-void kalman_filter(){
-  
-}
+    /*
+    Note: 
+    Comparing Accel and Gyro it was found that the gyro is way more precise but again, it 'accumulates', whereas
+    the accelerometer gives precise angle, for example, if you move it side to side, the gyro will change accordingly
+    but give big numbers overtime, such as 250>295, and then will stay as such, but the accel goes from 0.66>-50 or similar.
+    Also the gyro seems to stay more stable, staying on the same integer value,even if the decimals are chaotic,
+    whereas the accelerometer is way more chaotic, it jumps in managable ranges but still chaotic, like 1.83-2.0-0.99
+    */
+
+
+
