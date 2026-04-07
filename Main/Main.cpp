@@ -34,8 +34,7 @@ int new_gz;
 float tilt_angle;
 float pitch_angle;
 
-
-
+unsigned long previous_time;
 //Servos for Fin steering 
 Servo fin1;
 
@@ -76,11 +75,17 @@ void setup() {
     int new_gz = countgz/size_of_everyone;
     
     
+    previous_time = millis();
    
 }
 
+float previous_angle_x;
+float previous_angle_y;
+
 void loop() {
-    
+    unsigned long currentTime = millis(); //start counting
+    float dt = (currentTime - previous_time) / 1000.0; //how much time has passed since last function
+    previous_time = currentTime; //update
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     ax -= new_ax;
     ay -= new_ay;
@@ -89,20 +94,32 @@ void loop() {
     gy -= new_gy;
     gz -= new_gz;
     
+    gx = gx/131.0;
+    gy = gy/131.0;
+    gz = gz/131.0; //this since one raw value from the gyro measured in LSB is 1 degree per second every 131LSB
+
+    
+    previous_angle_x += gx * dt; //how many degrees per second times how much time it lasted
+    previous_angle_y += gy * dt;
+
     tilt_angle = atan2(ay,az) * 180/PI; //We give 2 arguments to atan2, y and z from accel, then multiply by 180 over PI since we got Radians
     pitch_angle = atan2(ax, az) * 180/PI; //We give 2 arguments to atan2, x and z from gyro, then multiply by 180 over PI since we got Radians
     
-    Serial.println("Pitch angle: ");
+    Serial.println("Gyro X:");
+    Serial.println(previous_angle_x);
+    Serial.println("Gyro Y:");
+    Serial.println(previous_angle_y);
+    
+
+    /*Serial.println("Pitch angle: ");
     Serial.println(pitch_angle);    
     Serial.println("   ");
     Serial.println("Tilt_angle:");
-    Serial.println(tilt_angle);
-   
-   
+    Serial.println(tilt_angle);*/
     delay(200);
 
 }
 
 void kalman_filter(){
-
+  
 }
