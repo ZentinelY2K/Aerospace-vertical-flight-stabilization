@@ -84,7 +84,7 @@ float previous_angle_y;
 
 void loop() {
     unsigned long currentTime = millis(); //start counting
-    float dt = (currentTime - previous_time) / 1000.0; //how much time has passed since last function
+    float dt = (currentTime - previous_time) / 1000.0; //how much time has passed since last loop
     previous_time = currentTime; //update
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     ax -= new_ax;
@@ -101,6 +101,15 @@ void loop() {
     
     previous_angle_x += gx * dt; //how many degrees per second times how much time it lasted
     previous_angle_y += gy * dt;
+
+    /*
+    Dev Note:
+    So basically we now have gx and gy for the gyroscope (yaw is kinda useless for now, and very unstable)
+    what we're doing with the unsigned long variables is measuring since setup (hence the previous_time = millis() in setup)
+    measuring time ever since our program started, then, we get the averaged gx and gy values and divide them by 131.0 to get degrees per second,
+    then, we add the previous angle by the degrees per sedcond times time, which means we 'accumulate' values but also those
+    values can decrease since they're relative, if dt is too small the value decreases, so we're measuring 'how much have I rolled since the program started?'
+    this way, we can have some sort of telemetry, but of course, to get accurate readings, we need to use the precise accelometer values (kalman filter!)    */
 
     tilt_angle = atan2(ay,az) * 180/PI; //We give 2 arguments to atan2, y and z from accel, then multiply by 180 over PI since we got Radians
     pitch_angle = atan2(ax, az) * 180/PI; //We give 2 arguments to atan2, x and z from gyro, then multiply by 180 over PI since we got Radians
