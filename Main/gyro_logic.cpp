@@ -1,9 +1,11 @@
-
+#include <WiFi.h>
+#include <WiFiUdp.h>
 #include <Wire.h>
 #include "I2Cdev.h"
 #include <MPU6050.h>
 #include <Arduino.h>
-#include <ESP32Servo.h>
+#include <ESP32Servo.h> 
+
 
 MPU6050 mpu;
 
@@ -33,30 +35,58 @@ int new_gz;
 
 float tilt_angle;
 float pitch_angle;
+float jaw_angle;
 
 unsigned long previous_time;
 //Servos for Fin steering 
 Servo fin1;
 
-void setup() { 
-    Wire.begin();
-    Serial.begin(115200);
-    //attach Servos to pins
-    fin1.attach(16);
-    
-    //buzzer attach
-    pinMode(18,OUTPUT);
 
-    Serial.println("Initializing MPU6050...");
-    mpu.initialize();
+const char* ssid = "ZentinelY2K";
+const char* password = "M8!rTz#4qLpX92vB2i#x";
 
-    if (mpu.testConnection()) {
+WiFiUDP udp;                           
+
+unsigned int localPort = 4211;   // B listens here
+unsigned int remotePort = 4210;  // A listens here
+
+//21,22 for G
+IPAddress ESP32_A_IP(10, 182, 195, 157); 
+
+void setup() {
+  Wire.begin();
+
+  Serial.begin(115200);
+  
+  Serial.println("Initializing MPU6050...");
+  
+  mpu.initialize();
+        
+  if (mpu.testConnection()) {
         Serial.println("MPU6050 connected!");
-    } else {
-        Serial.println("MPU6050 connection failed");
-    }
+  } 
 
-    //get data
+  else {
+        Serial.println("MPU6050 connection failed");
+  }
+
+ 
+  
+  //wifi and wireless setup
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  udp.begin(localPort);
+
+  Serial.println("\nESP32 B ready");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+   //get data
     for (int i = 0; i<=5000; i++){ //increase i<=x for more trials
       mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
       countgx += gx;
@@ -78,14 +108,20 @@ void setup() {
     
     
     previous_time = millis();
-   
+
 }
 
 float previous_angle_x;
 float previous_angle_y;
 
+
 void loop() {
-    unsigned long currentTime = millis(); //start counting
+   
+    udp.beginPacket(ESP32_A_IP,remotePort);
+    udp.print("Hello");
+    udp.endPacket();
+
+     unsigned long currentTime = millis(); //start counting
     float dt = (currentTime - previous_time) / 1000.0; //how much time has passed since last loop
     previous_time = currentTime; //update
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
@@ -106,7 +142,8 @@ void loop() {
     
     tilt_angle = atan2(ay,az) * 180/PI; //We give 2 arguments to atan2, y and z from accel, then multiply by 180 over PI since we got Radians
     pitch_angle = atan2(ax, az) * 180/PI; //We give 2 arguments to atan2, x and z from gyro, then multiply by 180 over PI since we got Radians
-    
+    jaw_angle = atan2(az,ax) * 180/PI;
+
     float averaged_values_x = previous_angle_x - tilt_angle;
     float averaged_values_y = previous_angle_y - pitch_angle; //for example if previous angle y is 345 we substract the pitc from accel which is something like 34
     /*
@@ -122,40 +159,25 @@ void loop() {
     Serial.println("   ");
     Serial.println("Y:");
     Serial.println(pitch_angle);*/
-    if (pitch_angle <= -80 && pitch_angle >= -90){
-        Serial.println("Vertical!");
-        digitalWrite(18,LOW);
-        fin1.write(0);
+    
+    char user_input = Serial.read();
+    Serial.println(user_input);
+    if (user_input == 'a'){
+          Serial.println("CONTINUE");
     }
     else{
-   
-        float off_relative_to_vertical = -85 - pitch_angle;
-        Serial.println("Off By:");
-        Serial.println(off_relative_to_vertical);
-        digitalWrite(18,HIGH);
-        fin1.write(15);
+          Serial.println("NO");
     }
     /*Serial.println("Gyro X:");
     Serial.println(previous_angle_x);
     Serial.println("Gyro Y:");
     Serial.println(previous_angle_y);*/
-
+    
     /*Serial.println("Pitch angle: ");
     Serial.println(pitch_angle); 
     Serial.println("   ");
     Serial.println("Tilt_angle:");
     Serial.println(tilt_angle);*/
-    delay(200);
+    delay(500);
+      
 }
-
-    /*
-    Note: 
-    Comparing Accel and Gyro it was found that the gyro is way more precise but again, it 'accumulates', whereas
-    the accelerometer gives precise angle, for example, if you move it side to side, the gyro will change accordingly
-    but give big numbers overtime, such as 250>295, and then will stay as such, but the accel goes from 0.66>-50 or similar.
-    Also the gyro seems to stay more stable, staying on the same integer value,even if the decimals are chaotic,
-    whereas the accelerometer is way more chaotic, it jumps in managable ranges but still chaotic, like 1.83-2.0-0.99
-    */
-
-
-
